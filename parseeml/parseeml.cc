@@ -113,7 +113,7 @@ int parseBoundaryZone(const string &boundary,ifstream &ifile)
     return 0;
 }
 
-string parseEmailFrom(ifstream &ifile)
+int parseEmailFrom(ifstream &ifile)
 {
     //get header
     string emailheader;
@@ -135,12 +135,11 @@ string parseEmailFrom(ifstream &ifile)
         //print body text/plan
     }
 
-    return "";
+    return 0;
 }
 
 int main(int argc,char *argv[])
 {
-
     ifstream infile("test.eml",std::ifstream::binary);
     parseEmailFrom(infile);
     infile.close();

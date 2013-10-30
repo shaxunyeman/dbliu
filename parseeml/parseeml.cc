@@ -5,6 +5,9 @@
 
 using namespace std;
 
+/*
+ getting header between boundary zone
+ */
 int EmailHeader(ifstream &ifile,string &header)
 {
     //get header
@@ -22,6 +25,25 @@ int EmailHeader(ifstream &ifile,string &header)
     return 0;
 }
 
+/*
+ getting body between boundary zone
+ */
+int BoundaryZoneBody(ifstream &ifile,string &body)
+{
+    while (ifile.eof() == false)
+    {
+        char outbuffer[1024] = {0};
+        ifile.getline(outbuffer,1024,'\n');
+        //std::cout << outbuffer << std::endl;
+        body += outbuffer;
+        body += "\n";
+        if (strcmp(outbuffer,"\r") == 0)
+            break;
+    }
+
+    return 0;
+}
+
 int ProcessHeader(const string &header)
 {
     std::cout << header << std::endl;
@@ -29,6 +51,9 @@ int ProcessHeader(const string &header)
     return 0;
 }
 
+/*
+ getting boundary symbol from header
+ */
 int ExstractBoundaryFrom(const string &header,string &boundary)
 {
     size_t pos = header.find("boundary",0);
@@ -92,6 +117,10 @@ int parseBoundaryZone(const string &boundary,ifstream &ifile)
     {
         char line[4096] = {0};
         ifile.getline(line,4096,'\n');
+
+        if (isBoundaryEnd(boundary,line))
+            break;
+
         if (isBoundaryBegin(boundary,line))
         {
             string header;
@@ -107,8 +136,6 @@ int parseBoundaryZone(const string &boundary,ifstream &ifile)
             }
         }
 
-        if (isBoundaryEnd(boundary,line))
-            break;
     }
     return 0;
 }

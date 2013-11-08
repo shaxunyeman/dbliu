@@ -1,6 +1,13 @@
 -module(deamon).
 -export([start/2]).
 
+%% trap_exit	Exit Signal		Action
+%% true			kill			Die:Broadcast the exit signal killed to the link set
+%% true			X				Add {'EXIT',Pid,X} to the mailbox
+%% false		normal			continue: Do-nothing signal vanishes
+%% false		kill			Die:Broadcast the exit signal killed to the link set
+%% false		X				Die:Broadcast the exit signal X to the link set
+
 start(Exit,Flag) ->
 	A = spawn(fun() -> a() end),
 	B = spawn(fun() -> b(A,Flag) end),

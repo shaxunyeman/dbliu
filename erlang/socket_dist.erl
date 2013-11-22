@@ -1,6 +1,7 @@
 -module(socket_dist).
 -export([start/0,store/2,lookup/1]).
 
+
 start() ->
 	register(kvs,spawn(fun() -> loop() end)).
 

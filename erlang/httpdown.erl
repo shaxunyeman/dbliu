@@ -7,7 +7,7 @@
 %%
 start(EventsMod) ->
 	%start("http://10.27.35.73/tpl/cnpcmail/package/cnpcmail_1.0.0.7.dat").
-	start("http://epush.petrochina.com.cn:8791/cnpcmail/mailclient_update/cnpcmail.dat",EventsMod).
+	start("http://dldir1.qq.com/invc/qqpinyin/QQPinyin_Setup_4.6.2044.400.exe",EventsMod).
 
 start(Uri,EventsMod) ->
 	%Uri = "http://epush.petrochina.com.cn:8791/cnpcmail/mailclient_update/cnpcmail.dat",

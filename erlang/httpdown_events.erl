@@ -4,8 +4,9 @@
 %% macro
 -define(RATE,50).
 
-event_file(_RequestId,FileName,Status) ->
+event_file(RequestId,FileName,Status) ->
 	%io:format("[~p ~p ~n]",[RequestId,FileName]),
+	http_to_file:create_file(RequestId,FileName),
 	[{filename,FileName}|Status].
 
 
@@ -16,13 +17,17 @@ event_streamstart(_RequestId,Header,Status) ->
 	io:format("begin downloading ~p[~.2f MB] ~n",[FileName,Len/1024/1024]),
 	[{'content-length',Len},{rate,Len div ?RATE},{timestamp,now()}|Status].
 
-event_streamend(_RequestId,_Header,Status) ->
+event_streamend(RequestId,_Header,Status) ->
 	%Total = parse_status_param(Status,'content-length'),
 	%CurSize = parse_status_param(Status,cursize),
+	http_to_file:close_file(RequestId),
+
 	Status.
 
-event_stream(_RequestId,BinBodyPart,Status) ->
+event_stream(RequestId,BinBodyPart,Status) ->
 	%io:format("."),
+	http_to_file:write_file(RequestId,BinBodyPart),
+
 	CurSize = parse_status_param(Status,cursize), 
 	if 
 		CurSize =:= none ->

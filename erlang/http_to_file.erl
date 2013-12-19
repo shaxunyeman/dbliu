@@ -19,7 +19,7 @@ create_file(RequestId,FileName) ->
   FileFullName = string:concat(?DOWNLOADPATH,FileName),
   IsFile = filelib:is_file(FileFullName),
   if
-	IsFile == true ->
+	IsFile == false ->
 	  case file:open(FileFullName,[write,binary]) of
 		{ok,Fd} ->
 		  rpc({set_fd,{RequestId,Fd}});
@@ -27,8 +27,8 @@ create_file(RequestId,FileName) ->
 		  io:format("~p ~n",[Reason]),
 		  {error,Reason}
 	  end;
-	IsFile == false ->
-	  {error,file_exist}
+	IsFile == true ->
+	  {error,{file_exist,FileFullName}}
   end.
 
 close_file(RequestId) ->

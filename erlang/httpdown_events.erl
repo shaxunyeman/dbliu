@@ -6,8 +6,12 @@
 
 event_file(RequestId,FileName,Status) ->
 	%io:format("[~p ~p ~n]",[RequestId,FileName]),
-	http_to_file:create_file(RequestId,FileName),
-	[{filename,FileName}|Status].
+	case http_to_file:create_file(RequestId,FileName) of
+	  {error,_Any} ->
+		{error,_Any};
+	  _Any ->
+		[{filename,FileName}|Status]
+	end.
 
 
 event_streamstart(_RequestId,Header,Status) ->

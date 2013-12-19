@@ -19,8 +19,13 @@ start(Uri,EventsMod) ->
 			[{sync, false},{stream,{self,once}}]) of
 		{ok,RequestId} ->
 			Status = EventsMod:event_file(RequestId,PackageName,[]),
-			receiver_once(RequestId,EventsMod,Status),
-			{ok,RequestId};
+			case Status of
+			  {error,Reason} ->
+				{error,Reason};
+			  _Ok ->
+				receiver_once(RequestId,EventsMod,Status),
+				{ok,RequestId}	
+			end;
 		{error,Reason} ->
 			io:format("request ~p failed.[~p] ~n",[Uri,Reason]),
 			{error,Reason}

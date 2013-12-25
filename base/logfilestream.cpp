@@ -1,4 +1,4 @@
-#include "logfilestream.h"
+#include "base/logfilestream.h"
 
 #define LOG_MAX_SIZE	10485760	//10M Bytes
 #define TRUNC_OFFSET	7340032		//7M Bytes
@@ -6,8 +6,8 @@
 namespace base {
 
 	LogFileStream::LogFileStream(const char *logfile)
-	:logfile_(logfile) {
-		
+		:logfile_(logfile) {
+
 	}
 
 	LogFileStream::~LogFileStream(void) {

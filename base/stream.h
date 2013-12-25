@@ -3,21 +3,21 @@
 
 namespace base {
 
-  class StreamInterface {
-    public:
-      StreamInterface(){
+	class StreamInterface {
+	public:
+		StreamInterface(){
 
-      }
+		}
 
-      virtual ~StreamInterface(void){
-      
-      }
+		virtual ~StreamInterface(void){
 
-      virtual int write(const char *data,unsigned int size) = 0;
-      virtual int read(char *buffer,unsigned int size) = 0;
-    protected:
-    private:
-  };
+		}
+
+		virtual int write(const char *data,unsigned int size) = 0;
+		virtual int read(char *buffer,unsigned int size) = 0;
+	protected:
+	private:
+	};
 
 } //namespace base
 

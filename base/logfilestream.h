@@ -4,7 +4,7 @@
 #include <fstream>
 #include <string>
 
-#include "stream.h"
+#include "base/stream.h"
 
 using namespace std;
 

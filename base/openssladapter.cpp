@@ -611,7 +611,7 @@ ssl_error:
 			BIO_write(mem, "\0", 1);
 			char* buffer;
 			BIO_get_mem_data(mem, &buffer);
-			LOG(LS_INFO) << buffer;
+			LOG(LS_VERBOSE) << buffer;
 			BIO_free(mem);
 
 			char* cipher_description =

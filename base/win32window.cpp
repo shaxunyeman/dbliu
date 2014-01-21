@@ -71,7 +71,7 @@ bool Win32Window::Create(HWND parent, const wchar_t* title, DWORD style,
     wcex.lpszClassName = kWindowBaseClassName;
     window_class_ = ::RegisterClassEx(&wcex);
     if (!window_class_) {
-      LOG(LS_ERROR) << "RegisterClassEx failed";
+      LOG(LS_ERROR) << "RegisterClassEx failed << (" << GetLastError() << ")";
       return false;
     }
   }

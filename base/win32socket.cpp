@@ -1,5 +1,4 @@
 #include "base/win32socket.h"
-#include "base/win32window.h"
 #include "base/logging.h"
 #include "base/common.h"
 
@@ -603,6 +602,7 @@ namespace base {
 				LOG(LS_INFO) << "WSAAsync:connect (" << duration << " ms)";
 #endif
 				state_ = CS_CONNECTED;
+
 				SignalConnectEvent(this);
 			}
 			break;
@@ -664,4 +664,113 @@ namespace base {
 		}
 	}
 
+	//////////////////////////////////////////////////////////////////////////////////////////
+	////// Win32SocketSErver
+	//////////////////////////////////////////////////////////////////////////////////////////
+	static UINT s_wm_wakeup_id = 0;
+	const TCHAR Win32SocketServer::kWindowName[] = L"libjingle Message Window";
+
+	Win32SocketServer::Win32SocketServer(MessageQueue* message_queue)
+	:message_queue_(message_queue)
+	,wnd_(this)
+	,posted_(false)
+	,hdlg_(NULL) {
+		s_wm_wakeup_id = RegisterWindowMessage(L"WM_WAKEUP");
+		if (!wnd_.Create(NULL,kWindowName,0,0,0,0,0,0)) {
+			LOG(LS_ERROR) << "Failed to create message window.";
+		}
+	}
+
+	Win32SocketServer::~Win32SocketServer() {
+		if (wnd_.handle() != NULL) {
+			KillTimer(wnd_.handle(),1);
+			wnd_.Destroy();
+		}
+	}
+
+	//from socketfactory
+	Socket* Win32SocketServer::CreateSocket(int type) {
+		return CreateSocket(AF_INET,type);
+	}
+
+	Socket* Win32SocketServer::CreateSocket(int family,int type) {
+		return CreateAsyncSocket(family,type);
+	}
+
+	AsyncSocket* Win32SocketServer::CreateAsyncSocket(int type) {
+		return CreateAsyncSocket(AF_INET,type);
+	}
+
+	AsyncSocket* Win32SocketServer::CreateAsyncSocket(int family,int type) {
+		Win32Socket* socket = new Win32Socket;
+		if (socket->CreateT(family,type)) {
+			return socket;
+		}
+		delete socket;
+		return NULL;
+	}
+
+	void Win32SocketServer::SetMessageQueue(MessageQueue* queue) {
+		message_queue_ = queue;
+	}
+
+	bool Win32SocketServer::Wait(int cms,bool process_io) {
+		BOOL b;
+		if (process_io) {
+			do {
+				MSG msg;
+				SetTimer(wnd_.handle(),0,cms,NULL);
+				b = GetMessage(&msg,NULL,0,0);
+				if (b == -1) {
+					LOG(LS_ERROR) << "GetMessage failed.";
+					return false;
+				} else if (b) {
+					if (!hdlg_ || !IsDialogMessage(hdlg_,&msg)) {
+						TranslateMessage(&msg);
+						DispatchMessage(&msg);
+					}
+				}
+				KillTimer(wnd_.handle(),0);
+			}while(b);
+		} else if (cms != 0) {
+			ASSERT(cms = -1);
+			MSG msg;
+			b = GetMessage(&msg,NULL,s_wm_wakeup_id,s_wm_wakeup_id);
+			{
+				CritScope scope(&cs_);
+				posted_ = false;
+			}
+		} else {
+			b = true;
+		}
+		return (b != FALSE);
+	}
+	
+	void Win32SocketServer::WakeUp() {
+		if (wnd_.handle()) {
+			CritScope scope(&cs_);
+			if (posted_)
+				return;
+			posted_ = true;
+		}
+
+		PostMessage(wnd_.handle(),s_wm_wakeup_id,0,0);
+	}
+	
+	void Win32SocketServer::Pump() {
+		{
+			CritScope scope(&cs_);
+			posted_ = false;
+		}
+	}
+
+	bool Win32SocketServer::MessageWindow::OnMessage(UINT uMsg, WPARAM wParam, LPARAM lParam,LRESULT& result) {
+		bool handled = false;
+		if (uMsg == s_wm_wakeup_id || (uMsg == WM_TIMER && wParam == 1)) {
+			ss_->Pump();
+			result = 0;
+			handled = true;
+		}
+		return handled;
+	}
 } //mamespace base

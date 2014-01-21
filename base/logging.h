@@ -57,6 +57,9 @@ namespace base{
 #define LOG(sev)  \
 	LogMessage(__FILE__,__LINE__,sev).stream()
 
+#define LAST_SYSTEM_ERROR \
+	(::GetLastError())
+
 } //namespace base
 
 

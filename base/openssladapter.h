@@ -49,7 +49,7 @@ namespace base {
 #endif  // !_DEBUG
 		static int SSLVerifyCallback(int ok, X509_STORE_CTX* store);
 		static VerificationCallback custom_verify_callback_;
-		friend class OpenSSLStreamAdapter;  // for custom_verify_callback_;
+		//friend class OpenSSLStreamAdapter;  // for custom_verify_callback_;
 
 		static bool ConfigureTrustedRootCertificates(SSL_CTX* ctx);
 		static SSL_CTX* SetupSSLContext();

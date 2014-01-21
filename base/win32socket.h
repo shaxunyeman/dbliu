@@ -3,6 +3,10 @@
 
 #include "base/asyncsocket.h"
 #include "base/socketaddress.h"
+#include "base/socketserver.h"
+#include "base/criticalsection.h"
+#include "base/messagequeue.h"
+#include "base/win32window.h"
 
 namespace base {
 
@@ -58,6 +62,52 @@ namespace base {
 
 		struct DnsLookup;
 		DnsLookup * dns_;
+	};
+
+	class Win32SocketServer : public SocketServer {
+	public:
+		Win32SocketServer(MessageQueue* message_queue);
+		~Win32SocketServer();
+
+		void set_modeless_dialog(HWND hdlg) {
+			hdlg_ = hdlg;
+		}
+
+		//from socketfactory
+		virtual Socket* CreateSocket(int type);
+		virtual Socket* CreateSocket(int family,int type);
+		virtual AsyncSocket* CreateAsyncSocket(int type);
+		virtual AsyncSocket* CreateAsyncSocket(int family,int type);
+
+		//socketserver
+		virtual void SetMessageQueue(MessageQueue* queue);
+		virtual bool Wait(int cms,bool process_io);
+		virtual void WakeUp();
+
+		void Pump();
+
+		HWND handle() {
+			return wnd_.handle();
+		}
+
+	protected:
+	private:
+		class MessageWindow : public Win32Window {
+		public:
+			explicit MessageWindow(Win32SocketServer* ss) 
+			:ss_(ss) {
+			}
+		private:
+			virtual bool OnMessage(UINT uMsg, WPARAM wParam, LPARAM lParam,LRESULT& result);
+			Win32SocketServer* ss_;
+		};
+
+		static const TCHAR kWindowName[];
+		MessageQueue *message_queue_;
+		MessageWindow wnd_;
+		CriticalSection cs_;
+		bool posted_;
+		HWND hdlg_;
 	};
 
 }	//namespace base

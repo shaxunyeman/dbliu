@@ -1,4 +1,5 @@
 #include "base/ipaddress.h"
+#include "base/nethelpers.h"
 
 namespace base {
 
@@ -143,6 +144,22 @@ namespace base {
 			return (v6.s6_addr[0] == 0xFE && v6.s6_addr[1] == 0x80) ||
 				IPIsLoopback(ip);
 					   }
+		}
+		return false;
+	}
+
+	bool IPFromAddrInfo(struct addrinfo* info, IPAddress* out) {
+		if (!info || !info->ai_addr) {
+			return false;
+		}
+		if (info->ai_addr->sa_family == AF_INET) {
+			sockaddr_in* addr = reinterpret_cast<sockaddr_in*>(info->ai_addr);
+			*out = IPAddress(addr->sin_addr);
+			return true;
+		} else if (info->ai_addr->sa_family == AF_INET6) {
+			sockaddr_in6* addr = reinterpret_cast<sockaddr_in6*>(info->ai_addr);
+			*out = IPAddress(addr->sin6_addr);
+			return true;
 		}
 		return false;
 	}

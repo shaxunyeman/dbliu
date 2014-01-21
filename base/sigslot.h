@@ -1835,7 +1835,7 @@ namespace sigslot {
 
 		virtual ~_connection1()
 		{
-                }
+		}
 
 		virtual _connection_base1<arg1_type, mt_policy>* clone()
 		{

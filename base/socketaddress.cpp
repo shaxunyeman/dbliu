@@ -3,6 +3,7 @@
 #include "base/win32.h"
 #include "base/socketaddress.h"
 #include "base/common.h"
+#include "base/nethelpers.h"
 
 namespace base {
 	SocketAddress::SocketAddress() {

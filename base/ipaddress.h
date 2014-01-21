@@ -1,6 +1,7 @@
 #ifndef __EYOU_DANDELION_BASE_IPADDRESS_H__
 #define __EYOU_DANDELION_BASE_IPADDRESS_H__
 
+#include <winsock2.h>
 #include <ws2tcpip.h>	//in6_addr
 #include <string>
 
@@ -76,6 +77,9 @@ namespace base {
 	bool IPIsAny(const IPAddress& ip);
 	bool IPIsLoopback(const IPAddress& ip);
 	bool IPIsPrivate(const IPAddress& ip);
+
+	bool IPFromAddrInfo(struct addrinfo* info, IPAddress* out);
+
 }	//namespace base
 
 #endif	//__EYOU_DANDELION_BASE_IPADDRESS_H__

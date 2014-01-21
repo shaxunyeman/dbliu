@@ -4,11 +4,7 @@
 #include <fstream>
 #include <string>
 
-<<<<<<< HEAD
-#include "stream.h"
-=======
 #include "base/stream.h"
->>>>>>> fe21f097603403f2b3eb7c02fe7cae4c50193754
 
 using namespace std;
 

@@ -13,6 +13,7 @@
 
 #define SMTP_START	1000
 #define SMTP_FINAL	1001
+#define SMTP_FAILD	1002
 
 Smtp::Smtp(const char* hostname,int port,
 			const char* username,const char* userpassword,
@@ -46,9 +47,15 @@ Smtp::~Smtp() {
 
 void Smtp::OnMessage(Message* msg) {
 	if (msg->message_id == SMTP_START) {
+		ASSERT(worker_->IsCurrent());
 		StartSmtp();
 	} else if (msg->message_id == SMTP_FINAL) {
+		ASSERT(main_->IsCurrent());
+		SuccessfulEvent();
 		worker_->Stop();
+	} else if (msg->message_id == SMTP_FAILD) {
+		ASSERT(main_->IsCurrent());
+		ErrorEvent("socket error");
 	}
 }
 
@@ -196,9 +203,11 @@ void Smtp::OnCloseEvent(AsyncSocket* socket, int err) {
 	// smtp服务不会返回250 ok的响应包
 	// 这里在socket层做了一个超时处理，超时后
 	// 我们主动断开socket，接收方能收到发送出去的邮件
-	if (err != 0 && err != WSAETIMEDOUT)
-		ErrorEvent("socket error");
-	
+	if (err != 0 && err != WSAETIMEDOUT) {
+		//ErrorEvent("socket error"); //process in mainthread
+		Notify(1);
+	}
+
 	Clean();
 
 	if (err == WSAETIMEDOUT && state_ == SMTP_DATA) {
@@ -573,7 +582,9 @@ int Smtp::quit_command() {
 
 void Smtp::Notify(int notify) {
 	if (notify == 0) {
-		SuccessfulEvent();
+		//SuccessfulEvent();	//process in mainthread
+		main_->Post(this,SMTP_FINAL);
+	} else {
+		main_->Post(this,SMTP_FAILD);
 	}
-	main_->Post(this,SMTP_FINAL);
 }

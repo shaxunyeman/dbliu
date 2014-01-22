@@ -16,27 +16,27 @@
 #define SMTP_FAILD	1002
 
 Smtp::Smtp(const char* hostname,int port,
-			const char* username,const char* userpassword,
-			Thread* main /*= NULL*/)
-:hostname_(hostname)
-,username_(username)
-,userpassword_(userpassword)
-,state_(SMTP_NONE)
-,port_(port)
-,Index_(0)
-,Recipient_index_(0)
-,CCRecipient_index_(0)
-,BCCRecipient_index_(0)
-,socket_(NULL)
-,bSsl_(false)
-,bIgnoreBadCert_(false)
-,main_((main == NULL) ? Thread::Current() : main)
-,worker_(new Thread){
+	const char* username,const char* userpassword,
+	Thread* main /*= NULL*/)
+	:hostname_(hostname)
+	,username_(username)
+	,userpassword_(userpassword)
+	,state_(SMTP_NONE)
+	,port_(port)
+	,Index_(0)
+	,Recipient_index_(0)
+	,CCRecipient_index_(0)
+	,BCCRecipient_index_(0)
+	,socket_(NULL)
+	,bSsl_(false)
+	,bIgnoreBadCert_(false)
+	,main_((main == NULL) ? Thread::Current() : main)
+	,worker_(new Thread){
 
-	Recipients_.clear();
-	CCRecipients_.clear();
-	BCCRecipients_.clear();
-	Attachments_.clear();
+		Recipients_.clear();
+		CCRecipients_.clear();
+		BCCRecipients_.clear();
+		Attachments_.clear();
 
 }
 
@@ -81,7 +81,7 @@ int Smtp::StartSmtp() {
 	socket_->SignalReadEvent.connect(this,&Smtp::OnReadEvent);
 	socket_->SignalWriteEvent.connect(this,&Smtp::OnWriteEvent);
 	socket_->SignalCloseEvent.connect(this,&Smtp::OnCloseEvent);
-	
+
 	return 0;
 }
 
@@ -151,7 +151,7 @@ int Smtp::RemoveUserFrom(USERLIST &list,const char*mail,const char* name) {
 	std::string str_mail(mail);
 	if (str_mail.find("@") == string::npos)
 		return -1;
-	
+
 	if (list.empty())
 		return -1;
 
@@ -220,7 +220,7 @@ int Smtp::SmtpXYZdigits(const char* data) {
 	if (data == NULL) {
 		return -1;
 	}
-	
+
 	char ret_code[4] = {0};
 	memcpy(ret_code,data,3);
 	return (::atoi(ret_code));
@@ -325,7 +325,7 @@ int Smtp::ehlo_command() {
 	char hostname[256] = {0};
 	gethostname(hostname,255);
 	_snprintf_s(ehlo,1024,"EHLO %s\r\n",hostname);
-	
+
 	LOG(LS_VERBOSE) << "request >> " << ehlo ;
 
 	return socket_->Send(ehlo,strlen(ehlo));
@@ -391,7 +391,7 @@ int Smtp::rcpt_command() {
 		str_rcpt = "RCPT TO:<";
 		str_rcpt += recipient.mail;
 		str_rcpt += ">\r\n";
-		
+
 		Index_ ++;
 
 		LOG(LS_VERBOSE) << "request >> "  << str_rcpt ;
@@ -403,7 +403,7 @@ int Smtp::rcpt_command() {
 		str_rcpt = "RCPT TO:<";
 		str_rcpt += recipient.mail;
 		str_rcpt += ">\r\n";
-		
+
 		Index_ ++;
 
 		LOG(LS_VERBOSE) << "request >> "  << str_rcpt ;
@@ -463,7 +463,7 @@ int Smtp::MakeMailBody(std::string &body) {
 	bool bHasAttachments = !Attachments_.empty();
 	std::vector<std::string> imgs;
 	int count = CHtmlParser::LocalImg2Cid(messagebody_,imgs);
-	
+
 	CMimeMessage mail;
 	mail.SetDate();
 	mail.SetVersion();
@@ -476,7 +476,7 @@ int Smtp::MakeMailBody(std::string &body) {
 		mail.SetBcc(BCCRecipients.c_str());
 	mail.SetSubject(subject_.c_str(),NULL);
 	mail.SetContentType((!bHasAttachments && count > 0) ? 
-						"multipart/related" : "multipart/mixed");
+		"multipart/related" : "multipart/mixed");
 	mail.SetBoundary(NULL);
 
 	CMimeBody* pBp = mail.CreatePart();
@@ -495,31 +495,27 @@ int Smtp::MakeMailBody(std::string &body) {
 
 			for ( vector<string>::iterator it = imgs.begin(); 
 				it != imgs.end();
-				it++) 
-			{
-				pBpChild = pBp->CreatePart();
-				pBpChild->SetTransferEncoding("base64");
-				pBpChild->ReadFromFile((*it).c_str());
-				pBpChild->SetFieldValue("Content-ID", ("<" + pBpChild->GetName() + ">").c_str());
+				it++) {
+					pBpChild = pBp->CreatePart();
+					pBpChild->SetTransferEncoding("base64");
+					pBpChild->ReadFromFile((*it).c_str());
+					pBpChild->SetFieldValue("Content-ID", ("<" + pBpChild->GetName() + ">").c_str());
 			}
-		}
-		else {
+		} else {
 			pBpChild->SetContentType("text/html");
 			pBpChild->SetTransferEncoding("base64");
 			pBpChild->SetText(messagebody_.c_str());
 
 			for ( vector<string>::iterator it = imgs.begin(); 
 				it != imgs.end();
-				it++) 
-			{
-				pBp = mail.CreatePart();
-				pBp->SetTransferEncoding("base64");
-				pBp->ReadFromFile((*it).c_str());
-				pBp->SetFieldValue("Content-ID", ("<" + pBp->GetName() + ">").c_str());
+				it++) {
+					pBp = mail.CreatePart();
+					pBp->SetTransferEncoding("base64");
+					pBp->ReadFromFile((*it).c_str());
+					pBp->SetFieldValue("Content-ID", ("<" + pBp->GetName() + ">").c_str());
 			}
 		}
-	}
-	else {
+	} else {
 
 		pBp->SetContentType("text/html");
 		pBp->SetTransferEncoding("base64");
@@ -529,11 +525,10 @@ int Smtp::MakeMailBody(std::string &body) {
 	// Add attachments body part
 	for ( vector<string>::iterator it = Attachments_.begin(); 
 		it != Attachments_.end();
-		it++) 
-	{
-		pBp = mail.CreatePart();
-		pBp->SetTransferEncoding("base64");
-		pBp->ReadFromFile((*it).c_str());
+		it++) {
+			pBp = mail.CreatePart();
+			pBp->SetTransferEncoding("base64");
+			pBp->ReadFromFile((*it).c_str());
 	}
 
 	int len = mail.GetLength();
@@ -552,8 +547,7 @@ int Smtp::send_body() {
 
 	int idx = 0,res,nLeft = body.size();
 
-	while(nLeft > 0)
-	{
+	while(nLeft > 0) {
 		res = socket_->Send(&body[idx],nLeft);
 		if(res == SOCKET_ERROR) {
 			if (socket_->GetError() == WSAEWOULDBLOCK) {

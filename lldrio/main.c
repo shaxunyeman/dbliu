@@ -5,12 +5,64 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <assert.h>
+#include <pthread.h>
 #include <netinet/in.h>
+#include <sys/time.h>
 #include <sys/types.h>          /* See NOTES */
 #include <sys/socket.h>
 #include <sys/epoll.h>
 
-#define EPOLL_MAX 1024
+#define EPOLL_MAX     1024
+#define EPOLL_WAIT_TIMEOUT    1000
+#define DEFUALT_PORT  50000
+
+static int connects = 0;
+static int in = 0;
+
+static int last_in = 0;
+static void print_statistics()
+{
+  fprintf(stderr, "current connects are %d ,in(%-12d Bytes/%-11d Bytes)\r", connects, in - last_in, in);
+  last_in = in;
+}
+
+static void discard(struct epoll_event *event)
+{
+  int fd = event->data.fd;
+  char buffer[4096] = {0};
+  int readed;
+  if(event->events & EPOLLIN == EPOLLIN) {
+    while(1) {
+      readed = read(fd, buffer, sizeof(buffer));
+      if(readed == -1) {
+        //由于socket是非阻塞的，当errno为EAGAIN时，表示缓冲区中
+        //没有数据可读了
+        if(errno == EAGAIN) {
+          break;
+        } else {
+          return;
+        }
+      } else if(readed == 0) {
+        //表明对端已经关闭
+        connects --;
+
+        close(fd);
+        break;
+      } else {
+        assert(readed <= sizeof(buffer));
+        //write(fd, buffer, readed);
+        in += readed;
+      }
+    }
+  } else if (event->events & EPOLLRDHUP == EPOLLRDHUP) {
+    close(fd);
+    connects --;
+
+  } else if (event->events & EPOLLOUT == EPOLLOUT) {
+    printf("out \n");
+  }
+
+}
 
 static void echo(struct epoll_event *event) 
 {
@@ -30,25 +82,48 @@ static void echo(struct epoll_event *event)
         }
       } else if(readed == 0) {
         //表明对端已经关闭
-        printf("read 0 (%d)\n", fd);
+        connects --;
+
         close(fd);
-        //free(event->data.ptr);
-        free(event);
         break;
       } else {
         assert(readed <= sizeof(buffer));
+        in += readed;
         write(fd, buffer, readed);
       }
     }
   } else if (event->events & EPOLLRDHUP == EPOLLRDHUP) {
-    printf("shut down %d \n", fd);
     close(fd);
-    //free(event->data.ptr);
-    free(event);
+    connects --;
+
   } else if (event->events & EPOLLOUT == EPOLLOUT) {
     printf("out \n");
   }
 }
+
+static void *worker(void *args)
+{
+  int epwfd = *(int*)args;
+  int waits = 0;
+  int i;
+  struct epoll_event ev[EPOLL_MAX] = {0};
+  while(1) {
+    waits = epoll_wait(epwfd, ev, EPOLL_MAX, -1);  
+    if(waits == -1) {
+      printf("worker: epoll_wait failed \n");
+      break;
+    }
+
+    for(i = 0; i < waits; i++) {
+      discard(&ev[i]);
+      //echo(&ev[i]);
+    }
+    print_statistics();
+  }
+  return NULL;
+}
+
+
 
 static int set_noblock(int fd) 
 {
@@ -68,12 +143,14 @@ static int set_noblock(int fd)
 int main(int argc, char** argv)
 {
   int epfd = -1;
+  int epwfd = -1;
   int srvfd = -1;
   int clientfd = -1;
   int waits = -1;
   int reuse = 1;
   int i;
-  size_t addlen = sizeof(struct sockaddr);
+  pthread_t th;
+  socklen_t addlen = sizeof(struct sockaddr);
   struct epoll_event event;
   struct epoll_event ev[1024] = {0};
   struct sockaddr_in server;
@@ -92,6 +169,19 @@ int main(int argc, char** argv)
     printf("reuse sockaddr failed, error is %s \n", strerror(errno));
   }
 
+  //创建工作线程
+  epwfd = epoll_create(sizeof(int));
+  if(epwfd == -1) {
+    printf("epoll_create failed, errno is %d \n", errno);
+    exit(-1);
+  }
+  
+  if(pthread_create(&th, NULL, worker, (void*)&epwfd)  != 0) {
+    printf("create worker thread failed \n");
+    exit(-1);
+  }
+
+  //处理服务socket
   if(set_noblock(srvfd) == -1) {
     exit(-1);
   }
@@ -111,24 +201,37 @@ int main(int argc, char** argv)
 
   server.sin_family = AF_INET;
   server.sin_addr.s_addr = htonl(INADDR_ANY);
-  server.sin_port = htons(8001);
+  /*
+  if(inet_pton(AF_INET, "0.0.0.0", &server.sin_addr) == -1) {
+    printf("inet_pton failed \n");
+    exit(-1);
+  }
+  */
+  server.sin_port = htons(DEFUALT_PORT);
   if(bind(srvfd, (struct sockaddr*)&server, sizeof(struct sockaddr)) == -1) {
     printf("bind failed, errno is %s \n",strerror(errno));
     exit(-1);
   }
   listen(srvfd, 5);
-  printf("listen %d ..... \n", srvfd);
-  
+  printf("listen %d ..... \n", DEFUALT_PORT);
+
   while(1) {
-    waits = epoll_wait(epfd, ev, EPOLL_MAX, -1);  
+    waits = epoll_wait(epfd, ev, EPOLL_MAX, EPOLL_WAIT_TIMEOUT);  
     if(waits == -1) {
       printf("epoll_wait failed, errno is %d \n", errno);
       exit(-1);
+    } else if (waits == 0) {
+      //timeout
+      //time += EPOLL_WAIT_TIMEOUT;
+      //float statistics = (float)(in / time);
+      //fprintf(stderr, "current connects are %d ,in(%-11d Bytes/%-11d Bytes)\r", connects, in - last_in, in);
+      //last_in = in;
+      print_statistics();
+      continue;
     }
 
     for(i = 0; i < waits; i++) {
-      struct epoll_event *clientev = NULL;
-      printf("wait (%d/%d) %d \n",i, waits, ev[i].data.fd);
+      struct epoll_event clientev;
       //处理accept
       if(ev[i].data.fd == srvfd) {
         clientfd = accept(srvfd, (struct sockaddr*)&clientaddr, &addlen);
@@ -136,30 +239,30 @@ int main(int argc, char** argv)
           printf("accept failed, errno is %d \n", errno);
           exit(-1);
         }
-        printf("coming client %d \n", clientfd);
+
+        connects ++;
+
         set_noblock(clientfd);
         
-        clientev = (struct epoll_event*)malloc(sizeof(struct epoll_event));
-        if(clientev == NULL) {
-          printf("memory out \n");
-          exit(-1);
-        }
-        memset(clientev, 0, sizeof(struct epoll_event));
-        clientev->events = EPOLLIN|EPOLLOUT|EPOLLRDHUP|EPOLLET;
-        clientev->data.fd = clientfd;
+        memset(&clientev, 0, sizeof(struct epoll_event));
+        clientev.events = EPOLLIN|EPOLLOUT|EPOLLRDHUP|EPOLLET;
+        clientev.data.fd = clientfd;
         //clientev->data.ptr = clientev;
-        if(epoll_ctl(epfd, EPOLL_CTL_ADD, clientfd, clientev) == -1) {
+        if(epoll_ctl(epwfd, EPOLL_CTL_ADD, clientfd, &clientev) == -1) {
           printf("epoll_ctl failed, errno is %s \n", strerror(errno));
           exit(-1);
         }
       } else {
         //处理客户端数据
-        echo(&ev[i]);
+        //echo(&ev[i]);
+        //discard(&ev[i]);
+        //已经交给独立的线程处理了
       }
     }
   }
 
   close(srvfd);
   close(epfd);
+  close(epwfd);
   return 0;
 }

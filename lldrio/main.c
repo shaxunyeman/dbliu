@@ -19,11 +19,20 @@
 static int connects = 0;
 static int in = 0;
 
+static int epwfd = -1;
+
 static int last_in = 0;
 static void print_statistics()
 {
   fprintf(stderr, "current connects are %d ,in(%-12d Bytes/%-11d Bytes)\r", connects, in - last_in, in);
   last_in = in;
+}
+
+void release_event(struct epoll_event *event)
+{
+  int fd = event->data.fd;
+  epoll_ctl(epwfd, EPOLL_CTL_DEL, fd, event);
+  close(fd);
 }
 
 static void discard(struct epoll_event *event)
@@ -40,13 +49,14 @@ static void discard(struct epoll_event *event)
         if(errno == EAGAIN) {
           break;
         } else {
+          connects --;
+          release_event(event);
           return;
         }
       } else if(readed == 0) {
         //表明对端已经关闭
         connects --;
-
-        close(fd);
+        release_event(event);
         break;
       } else {
         assert(readed <= sizeof(buffer));
@@ -55,11 +65,15 @@ static void discard(struct epoll_event *event)
       }
     }
   } else if (event->events & EPOLLRDHUP == EPOLLRDHUP) {
-    close(fd);
+    printf("hup \n");
     connects --;
-
+    release_event(event);
   } else if (event->events & EPOLLOUT == EPOLLOUT) {
     printf("out \n");
+  } else if (event->events & EPOLLERR == EPOLLERR) {
+    printf("err \n");
+    connects --;
+    release_event(event);
   }
 
 }
@@ -78,13 +92,14 @@ static void echo(struct epoll_event *event)
         if(errno == EAGAIN) {
           break;
         } else {
+          connects --;
+          release_event(event);
           return;
         }
       } else if(readed == 0) {
         //表明对端已经关闭
         connects --;
-
-        close(fd);
+        release_event(event);
         break;
       } else {
         assert(readed <= sizeof(buffer));
@@ -93,17 +108,20 @@ static void echo(struct epoll_event *event)
       }
     }
   } else if (event->events & EPOLLRDHUP == EPOLLRDHUP) {
-    close(fd);
+    printf("hup \n");
     connects --;
-
+    release_event(event);
   } else if (event->events & EPOLLOUT == EPOLLOUT) {
     printf("out \n");
+  } else if (event->events & EPOLLERR == EPOLLERR) {
+    connects --;
+    release_event(event);
   }
 }
 
 static void *worker(void *args)
 {
-  int epwfd = *(int*)args;
+  //int epwfd = *(int*)args;
   int waits = 0;
   int i;
   struct epoll_event ev[EPOLL_MAX] = {0};
@@ -143,7 +161,6 @@ static int set_noblock(int fd)
 int main(int argc, char** argv)
 {
   int epfd = -1;
-  int epwfd = -1;
   int srvfd = -1;
   int clientfd = -1;
   int waits = -1;
@@ -176,7 +193,7 @@ int main(int argc, char** argv)
     exit(-1);
   }
   
-  if(pthread_create(&th, NULL, worker, (void*)&epwfd)  != 0) {
+  if(pthread_create(&th, NULL, worker, NULL)  != 0) {
     printf("create worker thread failed \n");
     exit(-1);
   }

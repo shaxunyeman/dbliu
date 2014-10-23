@@ -34,24 +34,43 @@ class client(threading.Thread):
     self.host = g_host
     self.port = g_port 
     self.count = 0;
-
+	
+  def connect(self, sock):
+    try:
+      sock.connect((self.host, self.port))
+      return 0
+    except socket.error,e:
+      return 1
+    except socket.timeout,e:
+      return 1
+	  
   def run(self):
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    try:
-      ret = sock.connect((self.host, self.port))
-      while(True):
-#time.sleep(1)
+    retry = 0
+    while(True):
+      if(self.connect(sock) == 0):
+        break
+      else: 
+        if(retry < 10):
+          retry += 1
+          continue
+        else:  
+          print "connect failed"
+          return
+    
+    while(True):
+      try:
         sock.send(data)
         time.sleep(0.1)
         if(self.count > g_count):
           sock.close()
           return
-        else:
+        else:  
           self.count += 1
-    except socket.error,e:
-      print "error = %s " %e
-    except socket.timeout,e:
-      print "timeout "
+      except socket.error,e:
+          print "send failed, %s" %e
+          sock.close()
+          return
 
 
 def test():
@@ -66,3 +85,4 @@ def test():
 
 if __name__ == '__main__' :
   test()
+  
